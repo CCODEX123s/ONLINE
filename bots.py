@@ -1,0 +1,149 @@
+import requests
+import datetime
+from telegram import Update
+from telegram.ext import Application, CommandHandler, ContextTypes
+
+# 🔐 Replace this with your bot token
+BOT_TOKEN = "7763698415:AAHl5Q9_a4-KmiXaaMjjzFDuQFNXozDwSPA"
+
+# 🔄 Unix timestamp ➤ Readable string
+def timestamp_to_str(ts):
+    try:
+        return datetime.datetime.fromtimestamp(int(ts)).strftime("%d %B %Y at %H:%M:%S")
+    except:
+        return "Unknown"
+
+# 🎨 Main formatter function (HTML Styled)
+def format_info(data: dict) -> str:
+    b = data.get("basicInfo", {})
+    s = data.get("socialInfo", {})
+    p = data.get("profileInfo", {})
+    c = data.get("clanBasicInfo", {})
+    pet = data.get("petInfo", {})
+    credit = data.get("creditScoreInfo", {})
+    leader = data.get("captainBasicInfo", {})
+
+    title_id = {
+        904790063: "CS Stormbringer",
+        0: "N/A"
+    }
+
+    rank_map = {
+        300: "Bronze",
+        301: "Silver",
+        302: "Gold",
+        303: "Platinum",
+        304: "Diamond",
+        305: "Heroic",
+        306: "Grandmaster",
+        323: "Heroic I",
+        324: "Diamond I",
+        325: "Diamond II",
+        326: "Elite Heroic V"
+    }
+
+    return f"""
+<b>🧾 ACCOUNT INFO:</b><pre>
+┌ 👤 ACCOUNT BASIC INFO
+├─ Total Diamonds Topped Up & Claimed: Inactive
+├─ Prime Level: 1
+├─ Name: {b.get('nickname')}
+├─ UID: {b.get('accountId')}
+├─ Level: {b.get('level')} (Exp: {b.get('exp')})
+├─ Region: {b.get('region')}
+├─ Likes: {b.get('liked')}
+├─ Honor Score: {credit.get('creditScore')}
+├─ Celebrity Status: False
+├─ Evo Access Badge: inactive
+├─ Title ID: {title_id.get(b.get('title'), 'N/A')}
+└─ Signature: {s.get('signature', 'None')}
+
+┌ 🎮 ACCOUNT ACTIVITY
+├─ Most Recent OB: {b.get('releaseVersion')}
+├─ Fire Pass: Basic
+├─ Current BP Badges: {b.get('badgeCnt')}
+├─ BR Rank: {rank_map.get(b.get('rank'), 'Unknown')} ({b.get('rankingPoints')})
+├─ CS Rank: {rank_map.get(b.get('csRank'), 'Unknown')} ({b.get('csRankingPoints')})
+├─ Created At: {timestamp_to_str(b.get('createAt'))}
+└─ Last Login: {timestamp_to_str(b.get('lastLoginAt'))}
+
+┌ 👕 ACCOUNT OVERVIEW
+├─ Avatar ID: {b.get('headPic')}
+├─ Banner ID: 901000035
+├─ Pin ID: 910040001
+├─ Equipped Skills: Custom Mapping Needed
+├─ Equipped Gun ID: {b.get('weaponSkinShows', ['N/A'])[0]}
+├─ Equipped Animation ID: 912045002
+├─ Transform Animation ID: Not Equipped
+└─ Outfits: Graphically Presented Below! 😉
+
+┌ 🐾 PET DETAILS
+├─ Equipped?: {"Yes" if pet.get("isSelected") else "No"}
+├─ Pet ID: {pet.get("id")}
+├─ Pet Exp: {pet.get("exp")}
+└─ Pet Level: {pet.get("level")}
+
+┌ 🛡️ GUILD INFO
+├─ Guild Name: {c.get("clanName", "None")}
+├─ Guild ID: {c.get("clanId", "None")}
+├─ Guild Level: {c.get("clanLevel", "None")}
+├─ Live Members: {c.get("memberNum", "None")}
+└─ Leader Info:
+    ├─ Leader Name: {leader.get("nickname")}
+    ├─ Leader UID: {leader.get("accountId")}
+    ├─ Leader Level: {leader.get("level")} (Exp: {leader.get("exp")})
+    ├─ Leader Created At: {timestamp_to_str(leader.get("createAt"))}
+    ├─ Leader Last Login: {timestamp_to_str(leader.get("lastLoginAt"))}
+    ├─ Leader Title ID: Shield Points recovery/sec: 10 → 5
+    ├─ Leader BP Badges: {leader.get("badgeCnt")}
+    ├─ Leader BR: {rank_map.get(leader.get("rank"), 'Unknown')} ({leader.get("rankingPoints")})
+    └─ Leader CS: {rank_map.get(leader.get("csRank"), 'Unknown')} ({leader.get("csRankingPoints")})
+
+┌ 🗺️ PUBLIC CRAFTLAND MAPS
+Not Found
+
+📌 Our Group: https://t.me/coming soon 
+📌 Our Channel: https://t.me/coming soon 
+🔗 Powered By: @coming soon</pre>
+"""
+
+# 🧠 /info command handler
+async def info_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if len(context.args) != 1:
+        await update.message.reply_text("❗ Usage: <code>/info &lt;UID&gt;</code>", parse_mode="HTML")
+        return
+
+    uid = context.args[0]
+    api_url = f"http://full-info.vercel.app/player-info?uid={uid}"
+
+    try:
+        response = requests.get(api_url)
+        if response.status_code == 200:
+            data = response.json()
+            msg = format_info(data)
+            await update.message.reply_text(msg, parse_mode="HTML")
+        else:
+            await update.message.reply_text("❌ Player not found or API error.", parse_mode="HTML")
+    except Exception as e:
+        await update.message.reply_text(f"🚫 Error: <code>{e}</code>", parse_mode="HTML")
+
+# 🔰 /start command
+async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "<b>👑 WELCOME TO FREE FIRE SBH INFO BOT 👑</b>\n\n"
+        "Use <code>/info &lt;uid&gt;</code> to get full profile report.\n\n"
+        "🔥 Example: <code>/info 3822920378</code>\n\n"
+        "🔗 Made with ❤️ by @xsbh_1",
+        parse_mode="HTML"
+    )
+
+# 🚀 Main
+def main():
+    app = Application.builder().token(BOT_TOKEN).build()
+    app.add_handler(CommandHandler("start", start_command))
+    app.add_handler(CommandHandler("info", info_command))
+    print("✅ BOT IS RUNNING...")
+    app.run_polling()
+
+if __name__ == "__main__":
+    main()
